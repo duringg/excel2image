@@ -1,19 +1,19 @@
 
-import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
+
 import java.util.HashMap;
 
 public class Xssf2Hssf {
 
     private int lastColumn = 0;
-    private HashMap<Integer, HSSFCellStyle> styleMap = new HashMap();
+    private HashMap<Integer, CellStyle> styleMap = new HashMap();
 
-    public void transformXSSF(XSSFWorkbook workbookOld,
-                              HSSFWorkbook workbookNew) {
-        HSSFSheet sheetNew;
-        XSSFSheet sheetOld;
+    public void transformXSSF(Workbook workbookOld,
+                              Workbook workbookNew) {
+        Sheet sheetNew;
+        Sheet sheetOld;
         workbookNew.setMissingCellPolicy(workbookOld.getMissingCellPolicy());
 
         for (int i = 0; i < workbookOld.getNumberOfSheets(); i++) {
@@ -23,8 +23,8 @@ public class Xssf2Hssf {
         }
     }
 
-    private void transformSheet(XSSFWorkbook workbookOld, HSSFWorkbook workbookNew,
-                           XSSFSheet sheetOld, HSSFSheet sheetNew) {
+    private void transformSheet(Workbook workbookOld, Workbook workbookNew,
+                                Sheet sheetOld, Sheet sheetNew) {
 
         sheetNew.setDisplayFormulas(sheetOld.isDisplayFormulas());
         sheetNew.setDisplayGridlines(sheetOld.isDisplayGridlines());
@@ -32,7 +32,6 @@ public class Xssf2Hssf {
         sheetNew.setDisplayRowColHeadings(sheetOld.isDisplayRowColHeadings());
         sheetNew.setDisplayZeros(sheetOld.isDisplayZeros());
         sheetNew.setFitToPage(sheetOld.getFitToPage());
-
         sheetNew.setHorizontallyCenter(sheetOld.getHorizontallyCenter());
         sheetNew.setMargin(Sheet.BottomMargin,
                 sheetOld.getMargin(Sheet.BottomMargin));
@@ -51,11 +50,11 @@ public class Xssf2Hssf {
         sheetNew.setRowSumsRight(sheetNew.getRowSumsRight());
         sheetNew.setVerticallyCenter(sheetOld.getVerticallyCenter());
 
-        HSSFRow rowNew;
+        Row rowNew;
         for (Row row : sheetOld) {
             rowNew = sheetNew.createRow(row.getRowNum());
             if (rowNew != null)
-                this.transform(workbookOld, workbookNew, (XSSFRow) row, rowNew);
+                this.transformRow(workbookOld, workbookNew, (XSSFRow) row, rowNew);
         }
 
         for (int i = 0; i < this.lastColumn; i++) {
@@ -69,32 +68,31 @@ public class Xssf2Hssf {
         }
     }
 
-    private void transform(XSSFWorkbook workbookOld, HSSFWorkbook workbookNew,
-                           XSSFRow rowOld, HSSFRow rowNew) {
-        HSSFCell cellNew;
+    private void transformRow(Workbook workbookOld, Workbook workbookNew,
+                              XSSFRow rowOld, Row rowNew) {
+        Cell cellNew;
         rowNew.setHeight(rowOld.getHeight());
         for (Cell cell : rowOld) {
             cellNew = rowNew.createCell(cell.getColumnIndex(),
                     cell.getCellType());
             if (cellNew != null)
-                this.transform(workbookOld, workbookNew, (XSSFCell) cell,
+                this.transformCell(workbookOld, workbookNew, (XSSFCell) cell,
                         cellNew);
         }
         this.lastColumn = Math.max(this.lastColumn, rowOld.getLastCellNum());
     }
 
-    private void transform(XSSFWorkbook workbookOld, HSSFWorkbook workbookNew,
-                           XSSFCell cellOld, HSSFCell cellNew) {
+    private void transformCell(Workbook workbookOld, Workbook workbookNew,
+                               XSSFCell cellOld, Cell cellNew) {
         cellNew.setCellComment(cellOld.getCellComment());
 
         Integer hash = cellOld.getCellStyle().hashCode();
         if (this.styleMap != null && !this.styleMap.containsKey(hash)) {
-            this.transformStyle(workbookOld, workbookNew, hash,
-                    cellOld.getCellStyle(),
-                    (HSSFCellStyle) workbookNew.createCellStyle());
+            this.transformStyle(workbookOld, workbookNew, hash, cellOld.getCellStyle(), workbookNew.createCellStyle());
         }
-        cellNew.setCellStyle(this.styleMap.get(hash));
-
+        if (this.styleMap != null) {
+            cellNew.setCellStyle(this.styleMap.get(hash));
+        }
         switch (cellOld.getCellType()) {
             case BOOLEAN:
                 cellNew.setCellValue(cellOld.getBooleanCellValue());
@@ -116,21 +114,19 @@ public class Xssf2Hssf {
         }
     }
 
-    private void transformStyle(XSSFWorkbook workbookOld, HSSFWorkbook workbookNew,
-                                Integer hash, XSSFCellStyle styleOld, HSSFCellStyle styleNew) {
+    private void transformStyle(Workbook workbookOld, Workbook workbookNew,
+                                Integer hash, XSSFCellStyle styleOld, CellStyle styleNew) {
         try {
             styleNew.setAlignment(styleOld.getAlignment());
             styleNew.setBorderBottom(styleOld.getBorderBottom());
             styleNew.setBorderLeft(styleOld.getBorderLeft());
             styleNew.setBorderRight(styleOld.getBorderRight());
             styleNew.setBorderTop(styleOld.getBorderTop());
-            styleNew.setDataFormat(this.transform(workbookOld, workbookNew,
-                    styleOld.getDataFormat()));
+            styleNew.setDataFormat(this.transformDataFormat(workbookOld, workbookNew, styleOld.getDataFormat()));
             styleNew.setFillBackgroundColor(styleOld.getFillBackgroundColor());
             styleNew.setFillForegroundColor(styleOld.getFillForegroundColor());
             styleNew.setFillPattern(styleOld.getFillPattern());
-            styleNew.setFont(this.transform(workbookNew,
-                    (XSSFFont) styleOld.getFont()));
+            styleNew.setFont(this.transformFont(workbookNew, styleOld.getFont()));
             styleNew.setHidden(styleOld.getHidden());
             styleNew.setIndention(styleOld.getIndention());
             styleNew.setLocked(styleOld.getLocked());
@@ -148,8 +144,8 @@ public class Xssf2Hssf {
         this.styleMap.put(hash, styleNew);
     }
 
-    private short transform(XSSFWorkbook workbookOld, HSSFWorkbook workbookNew,
-                            short index) {
+    private short transformDataFormat(Workbook workbookOld, Workbook workbookNew,
+                                      short index) {
         DataFormat formatOld = workbookOld.createDataFormat();
         DataFormat formatNew = workbookNew.createDataFormat();
         String format = formatOld.getFormat(index);
@@ -159,8 +155,8 @@ public class Xssf2Hssf {
         return formatNew.getFormat(format);
     }
 
-    private HSSFFont transform(HSSFWorkbook workbookNew, XSSFFont fontOld) {
-        HSSFFont fontNew = workbookNew.createFont();
+    private Font transformFont(Workbook workbookNew, XSSFFont fontOld) {
+        Font fontNew = workbookNew.createFont();
         fontNew.setBold(fontOld.getBold());
         fontNew.setCharSet(fontOld.getCharSet());
         fontNew.setColor(fontOld.getColor());

@@ -22,7 +22,7 @@ import java.io.FileInputStream;
 public class Excel2Image {
     public static void saveImage() {
         try {
-            File file = new File("src/main/resources/报价模板.xls");
+            File file = new File("src/main/resources/报价模板.xlsx");
             String fileName = file.getName();
             FileInputStream inputStream = new FileInputStream(file);
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -64,7 +64,7 @@ public class Excel2Image {
                 Html2Image image = Html2Image.fromHtml(outStream.toString());
                 ImageRenderer imageRenderer = image.getImageRenderer();
                 imageRenderer.saveImage(new File("src/main/resources/" + fileName + ".png"));
-            } catch (Exception e3) {
+            } catch (Exception ignored) {
             } finally {
                 outStream.close();
                 if (workbook != null) {
